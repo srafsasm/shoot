@@ -87,7 +87,7 @@ class View:
             glMatrixMode(GL_PROJECTION)
             glLoadIdentity()
 
-            # Perspecitve (tentative)
+            # Perspective (tentative)
             gluPerspective(60, WIDTH/HEIGHT, 0.1, 50)
 
             glMatrixMode(GL_MODELVIEW)
