@@ -12,8 +12,9 @@ DISPLAY = (WIDTH, HEIGHT)
 
 class Bullet:
 
-    # Initializes bullet size, bullet speed, and moving angle
-    def __init__(self, size, speed, angle):
+    # Initializes starting point, bullet size, bullet speed, and moving angle
+    def __init__(self, start, size, speed, angle):
+        self.start = start
         self.size = size
         self.speed = speed
         self.angle = angle
@@ -28,6 +29,7 @@ class Bullet:
 
     # Multiplies transform matrices. No need to change unless you know what you are doing.
     def movement(self):
+        glTranslatef(self.start[0], self.start[1], self.start[2])
         glRotatef(self.angle, 0, 1, 0)
         glTranslatef(self.speed * self.move[0], self. speed * self.move[1], self.speed * self.move[2])
 
@@ -35,7 +37,7 @@ class Bullet:
     # A constant 0.01 may need a change if view is changed.
     def forward(self):
         self.move[2] -= 0.01
-        
+
 
 class View:
     def __init__(self):
@@ -58,6 +60,21 @@ class View:
         glLightfv(GL_LIGHT0, GL_POSITION, lightPosition)
         glEnable(GL_LIGHT0)
     
+    # Update bullets info
+    def updateBullets(self):
+        # Visualize all the bullets
+        for bullet in self.Bullets:
+            glPushMatrix()
+            bullet.forward()
+            bullet.movement()
+            bullet.create()
+            glPopMatrix()
+
+        # Destroy the bullets after moving certain distance. Currently 1.
+        for bullet in self.Bullets:
+            if abs(bullet.move[2]) >= 1:
+                self.Bullets = self.Bullets[2:]
+
     # pygame-based interface
     def display(self):
         pygame.init()
@@ -76,9 +93,10 @@ class View:
 
                     # Press z to create a bullet(s)
                     if event.key == pygame.K_z:
-                        self.Bullets.append(Bullet(size=1, speed=3, angle=0))   # a straight bullet
-                        self.Bullets.append(Bullet(size=1, speed=3, angle=-10)) # a right sided bullet
-                        self.Bullets.append(Bullet(size=1, speed=3, angle=10))  # a left sided bullet
+                        self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, angle=0))   # a straight bullet
+                        self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, angle=-10)) # a right sided bullet
+                        self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, angle=10))  # a left sided bullet
+
 
             keypress = pygame.key.get_pressed()
             glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
@@ -96,16 +114,11 @@ class View:
             # View (tentative)
             gluLookAt(0, 0, 0.5,   0, 0, 0,   0, 1, 0)
 
-            # Visualize all the bullets
-            for bullet in self.Bullets:
-                glPushMatrix()
-                bullet.forward()
-                bullet.movement()
-                bullet.create()
-                glPopMatrix()
+            self.updateBullets()
 
             pygame.display.flip()
             pygame.time.wait(10)
+
 
 view = View()
 view.display()
