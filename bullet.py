@@ -12,11 +12,12 @@ DISPLAY = (WIDTH, HEIGHT)
 
 class Bullet:
 
-    # Initializes starting point, bullet size, bullet speed, and moving angle
-    def __init__(self, start, size, speed, angle):
+    # Initializes starting point, bullet size, bullet speed, direction(+z or -z), and moving angle
+    def __init__(self, start, size, speed, direction, angle):
         self.start = start
         self.size = size
         self.speed = speed
+        self.direction = direction
         self.angle = angle
         self.move = [0, 0, 0]
     
@@ -36,7 +37,7 @@ class Bullet:
     # Multiplies transform matrices.
     # A constant 0.01 may need a change if view is changed.
     def forward(self):
-        self.move[2] -= 0.01
+        self.move[2] += self.direction * 0.01
 
 
 class View:
@@ -93,9 +94,9 @@ class View:
 
                     # Press z to create a bullet(s)
                     if event.key == pygame.K_z:
-                        self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, angle=0))   # a straight bullet
-                        self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, angle=-10)) # a right sided bullet
-                        self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, angle=10))  # a left sided bullet
+                        self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, direction=-1, angle=0))   # a straight bullet
+                        self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, direction=-1, angle=-10)) # a right sided bullet
+                        self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, direction=-1, angle=10))  # a left sided bullet
 
 
             keypress = pygame.key.get_pressed()
