@@ -5,44 +5,24 @@ import pygame
 from pygame.locals import *
 import numpy as np
 import time
+import os
+import sys
+from obj.chj.ogl import *
+from obj.chj.ogl.objloader import CHJ_tiny_obj, OBJ
+from obj.chj.ogl import light
+from Chess.Board.board import *
+from Chess.Board.piece import *
+from Shoot.bullet import *
 
-WIDTH = 400
-HEIGHT = 400
+WIDTH = 800 
+HEIGHT = 600
 DISPLAY = (WIDTH, HEIGHT)
-
-class Bullet:
-
-    # Initializes starting point, bullet size, bullet speed, direction(+z or -z), and moving angle
-    def __init__(self, start, size, speed, direction, angle):
-        self.start = start
-        self.size = size
-        self.speed = speed
-        self.direction = direction
-        self.angle = angle
-        self.move = [0, 0, 0]
-    
-    # Creates a bullet. Currently a red sphere is created.
-    def create(self):
-        sphere = gluNewQuadric()
-        glColor3f(1.0, 0.0, 0.0)
-        gluQuadricTexture(sphere, GL_TRUE)
-        gluSphere(sphere, self.size * 0.01, 100, 100)
-
-    # Multiplies transform matrices. No need to change unless you know what you are doing.
-    def movement(self):
-        glTranslatef(self.start[0], self.start[1], self.start[2])
-        glRotatef(self.angle, 0, 1, 0)
-        glTranslatef(self.speed * self.move[0], self. speed * self.move[1], self.speed * self.move[2])
-
-    # Multiplies transform matrices.
-    # A constant 0.01 may need a change if view is changed.
-    def forward(self):
-        self.move[2] += self.direction * 0.01
-
 
 class View:
     def __init__(self):
         self.Bullets = []   # List that stores bullet instances
+        self.Pieces = []
+        self.Board = False
 
     # Duplicated from assignment 2
     def light(self):
@@ -97,11 +77,20 @@ class View:
                         self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, direction=-1, angle=0))   # a straight bullet
                         self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, direction=-1, angle=-10)) # a right sided bullet
                         self.Bullets.append(Bullet(start=[0.0,0.0,0.0], size=1, speed=3, direction=-1, angle=10))  # a left sided bullet
+                    if event.key == pygame.K_x:
+                        for name in PIECENAMES:
+                            self.Pieces.append(Piece(name))
+                    if event.key == pygame.K_c:
+                        self.Board = True
+
+                if event.type == pygame.MOUSEBUTTONUP:
+                    pos = pygame.mouse.get_pos()
+                    print(pos)
 
 
             keypress = pygame.key.get_pressed()
             glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-            glClearColor(0, 0, 0, 1)
+            glClearColor(0.6, 0.7, 0.6, 1)
 
             glMatrixMode(GL_PROJECTION)
             glLoadIdentity()
@@ -113,9 +102,19 @@ class View:
             glLoadIdentity()
 
             # View (tentative)
-            gluLookAt(0, 0, 0.5,   0, 0, 0,   0, 1, 0)
+            gluLookAt(0, 0.3, 0.5,   0, 0, 0,   0, 1, 0)
 
             self.updateBullets()
+            for piece in self.Pieces:
+                glColor3f(1, 0.5, 1)
+                piece.draw()
+            if self.Board: 
+                glPushMatrix()
+                glTranslatef(0, 0, -0.1)
+                glRotatef(-70, 1, 0, 0)
+                glScalef(0.7, 0.7, 0.7)
+                drawChessBoard()
+                glPopMatrix()
 
             pygame.display.flip()
             pygame.time.wait(10)
