@@ -1,13 +1,13 @@
 class chessBoard:
-    def __init__(self):
-        self.board = [[1,2,3,4,5,3,2,1],
-                      [6,6,6,6,6,6,6,6],
-                      [0,0,0,0,0,0,0,0],
-                      [0,0,0,0,0,0,0,0],
-                      [0,0,0,0,0,0,0,0],
-                      [0,0,0,0,0,0,0,0],
-                      [-6,-6,-6,-6,-6,-6,-6,-6],
-                      [-1,-2,-3,-4,-5,-3,-2,-1]]
+    def __init__(self):        
+        self.board = [[rooks("rook",0,7,1),knights("knights",1,7,1),bishops("bishops",2,7,1),king("king", 3,7,1),queen("queen",4,7,1),bishops("bishops",5,7,1),knights("knights",6,7,1),rooks("rook",7,7,1)],
+                      [pawns("pawn",0,6,1),pawns("pawn",1,6,1),pawns("pawn",2,6,1),pawns("pawn",3,6,1),pawns("pawn",4,6,1),pawns("pawn",5,6,1),pawns("pawn",6,6,1),pawns("pawn",7,6,1)],
+                      [None,None,None,None,None,None,None,None],
+                      [None,None,None,None,None,None,None,None],
+                      [None,None,None,None,None,None,None,None],
+                      [None,None,None,None,None,None,None,None],
+                      [pawns("pawn",0,1,-1),pawns("pawn",1,1,-1),pawns("pawn",2,1,-1),pawns("pawn",3,1,-1),pawns("pawn",4,1,-1),pawns("pawn",5,1,-1),pawns("pawn",6,1,-1),pawns("pawn",7,1,-1)],
+                      [rooks("rook",0,0,-1),knights("knights",1,0,-1),bishops("bishops",2,0,-1),king("king", 3,0,-1),queen("queen",4,0,-1),bishops("bishops",5,0,-1),knights("knights",6,0,-1),rooks("rook",7,0,-1)]]
         
         self.colorBoard = [[0]*8 for i in range(8)]
         
@@ -24,7 +24,12 @@ class chessBoard:
         
     def printBoard(self):
         for i in range(8):
-            print(self.board[i])
+            for j in range(8):
+                if self.board[i][j] == None:
+                    print("None", end= " ")
+                else:
+                    print(self.board[i][j].retType(), end=" ")
+            print("\n")
         print("")
         
     def printColorBoard(self):
@@ -54,18 +59,22 @@ class chessPieces:
     def checkMovable(self, x, y, board):
         if x >= 0 and x <= 7 and y >= 0 and y <= 7:
             y = 7 - y
-            if board[y][x] * self.group > 0:
-                print("can't move: ", board[y][x])
+            if board[y][x] == None:
+                return 0 # can move
+            elif board[y][x].retGroup() * self.group > 0:
                 return -1 # can't move (same group)
-            elif board[y][x] * self.group < 0:
-                print("catchable: ", board[y][x])
+            elif board[y][x].retGroup() * self.group < 0:
                 return 1 # there is other group's pieces
             else:
-                print("can move, ", x, " ", 7-y, " ", board[y][x])
                 return 0 # can move
         else:
-            print("can't move")
             return -1 # can't move
+        
+    def retGroup(self):
+        return self.group
+    
+    def retType(self):
+        return self.type
 
 class bishops(chessPieces):
     def __init__(self, type, x, y, group):
@@ -232,7 +241,7 @@ class pawns(chessPieces):
 class chess:
     def __init__(self):
         self.chessBoard = chessBoard()
-        self.whiteKing = pawns(4, 2, 3, -1)
+        self.whiteKing = queen(4, 2, 3, -1)
     
     def test(self):
         self.chessBoard.printBoard()
