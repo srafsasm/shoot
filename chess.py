@@ -4,7 +4,7 @@ class chessBoard:
                       [pawns("pawn",0,6,1),pawns("pawn",1,6,1),pawns("pawn",2,6,1),pawns("pawn",3,6,1),pawns("pawn",4,6,1),pawns("pawn",5,6,1),pawns("pawn",6,6,1),pawns("pawn",7,6,1)],
                       [None,None,None,None,None,None,None,None],
                       [None,None,None,None,None,None,None,None],
-                      [None,None,None,None,None,None,None,None],
+                      [None,None,queen("queen",4,0,-1),None,None,None,None,None],
                       [None,None,None,None,None,None,None,None],
                       [pawns("pawn",0,1,-1),pawns("pawn",1,1,-1),pawns("pawn",2,1,-1),pawns("pawn",3,1,-1),pawns("pawn",4,1,-1),pawns("pawn",5,1,-1),pawns("pawn",6,1,-1),pawns("pawn",7,1,-1)],
                       [rooks("rook",0,0,-1),knights("knights",1,0,-1),bishops("bishops",2,0,-1),king("king", 3,0,-1),queen("queen",4,0,-1),bishops("bishops",5,0,-1),knights("knights",6,0,-1),rooks("rook",7,0,-1)]]
@@ -21,6 +21,9 @@ class chessBoard:
         for i in catchable:
             self.colorBoard[7-i[1]][i[0]] = 2
         
+    def movePieces(self, x1, y1, x2, y2):
+        self.board[7-y2][x2] = self.board[7-y1][x1] # garbage 처리 필요할 듯
+        self.board[7-y1][x1] = None
         
     def printBoard(self):
         for i in range(8):
@@ -245,13 +248,16 @@ class chess:
     
     def test(self):
         self.chessBoard.printBoard()
-        self.chessBoard.printColorBoard()
-        self.whiteKing.getMovablePlace(self.chessBoard.board)
+        #self.chessBoard.printColorBoard()
+        self.whiteKing.getMovablePlace(self.chessBoard.board) # 움직일 수 있는 칸 탐색
         print(self.whiteKing.getMovable())
         print(self.whiteKing.getCatchable())
-        self.chessBoard.updateColorBoard(self.whiteKing.getMovable(), self.whiteKing.getCatchable())
-        self.chessBoard.printColorBoard()
-        self.chessBoard.updateColorBoard(None, None)
+        self.chessBoard.updateColorBoard(self.whiteKing.getMovable(), self.whiteKing.getCatchable()) # color board 업데이트
+        #self.chessBoard.printColorBoard()
+        self.chessBoard.updateColorBoard(None, None) # color board 초기화
+        self.chessBoard.movePieces(2,3,2,5)
+        self.chessBoard.printBoard()
+        
     
 if __name__ == "__main__":
     chess = chess()
