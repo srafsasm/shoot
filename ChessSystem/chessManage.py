@@ -18,6 +18,7 @@ def main():
     gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
     
     managedBoard = chessRule.chessBoard()
+    # 여기서 2가 체스판 한 변의 길이에요
     markedBoard = markingBoard.MarkingBoard(2)
     
     # 현재 차례표시 변수 (1, -1)
@@ -96,7 +97,7 @@ def main():
         managedBoard.updateColorBoard(currentPos)
         # 현재 움직일수 있는 칸, 잡을 수 있는 칸, 선택되어 있는 칸 출력
         markedBoard.draw(managedBoard.colorBoard)
-        # 현재 piece 위치에 draw 함수 수행
+        # 현재 piece 위치에 draw 함수 수행, 여기서 2는 체스판 한 변 길이에요
         managedBoard.drawPieces(2)
         
         glPopMatrix()
