@@ -10,6 +10,7 @@ import sys
 from obj.chj.ogl import *
 from obj.chj.ogl.objloader import CHJ_tiny_obj, OBJ
 from obj.chj.ogl import light
+from ChessSystem.chessRule import *
 
 class Player:
 
@@ -50,9 +51,20 @@ class Player:
         # update position
         self.pos[0:2] = np.add(self.pos[0:2], self.velocity)
 
-    def draw(self):
+    def draw(self, piece):
         glPushMatrix()
         glTranslatef(*self.pos)
-        cylinder = gluNewQuadric()
-        gluCylinder(cylinder, self.size, self.size, 0.1, 10, 1)
+        # glRotatef(90, 1, 0, 0)
+        # glTranslatef(piece.place[0], piece.place[1]+0.45, piece.place[2])
+        # glRotatef(-90, 1, 0, 0)
+        if piece.name[0:5] == "Black":
+            glRotatef(180, 0, 0, 1)
+        glScale(PIECESIZE, PIECESIZE, PIECESIZE)
+        glCallList(piece.obj.gl_list)
         glPopMatrix()
+
+        # 
+        # cylinder = gluNewQuadric()
+        # gluCylinder(cylinder, self.size, self.size, 0.1, 10, 1)
+        # glPopMatrix()
+        
