@@ -119,15 +119,17 @@ board58 = half(board48, board68)
 board78 = half(board68, board88)
 
 # Define a board
-board = [[board00, board01, board02, board03, board04, board05, board06, board07, board08],
-         [board10, board11, board12, board13, board14, board15, board16, board17, board18],
-         [board20, board21, board22, board23, board24, board25, board26, board27, board28],
-         [board30, board31, board32, board33, board34, board35, board36, board37, board38],
-         [board40, board41, board42, board43, board44, board45, board46, board47, board48],
-         [board50, board51, board52, board53, board54, board55, board56, board57, board58],
-         [board60, board61, board62, board63, board64, board65, board66, board67, board68],
+board = [
+         [board80, board81, board82, board83, board84, board85, board86, board87, board88],
          [board70, board71, board72, board73, board74, board75, board76, board77, board78],
-         [board80, board81, board82, board83, board84, board85, board86, board87, board88]]
+         [board60, board61, board62, board63, board64, board65, board66, board67, board68],
+         [board50, board51, board52, board53, board54, board55, board56, board57, board58],
+         [board40, board41, board42, board43, board44, board45, board46, board47, board48],
+         [board30, board31, board32, board33, board34, board35, board36, board37, board38],
+         [board20, board21, board22, board23, board24, board25, board26, board27, board28],
+         [board10, board11, board12, board13, board14, board15, board16, board17, board18],
+         [board00, board01, board02, board03, board04, board05, board06, board07, board08],
+        ]
 
 # Draw a chess board
 def drawChessBoard():
@@ -142,13 +144,13 @@ def drawChessBoard():
     for j in range(0, 8):
         for i in range(0, 8):
             if j % 2 == 1 and i % 2 == 0:
-                glColor3f(0, 0, 0)
+                glColor3f(1, 1, 1)
             elif j % 2 == 1 and i % 2 == 1:
-                glColor3f(1, 1, 1)
-            elif j % 2 == 0 and i % 2 == 0:
-                glColor3f(1, 1, 1)
-            else:
                 glColor3f(0, 0, 0)
+            elif j % 2 == 0 and i % 2 == 0:
+                glColor3f(0, 0, 0)
+            else:
+                glColor3f(1, 1, 1)
 
             glBegin(GL_TRIANGLES)
             glVertex3fv(board[i][j])
@@ -277,4 +279,3 @@ def drawBattlefield():
             glVertex3f(board[i][j+1][0]  , board[i][j+1][1]  , board[i][j+1][2]   + 0.2)
             glEnd()
     glPopMatrix()
-    
