@@ -117,7 +117,7 @@ class OBJ:
 
     def create_gl_list(self):
         if self.mtl is not None:
-            print(self.mtl, "---")
+            # print(self.mtl, "---")
             self.mtl = MTL( *self.mtl )
 
         self.gl_list = glGenLists(1)
