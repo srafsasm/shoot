@@ -6,107 +6,177 @@ from pygame.locals import *
 import numpy as np
 import time
 
+from obj.chj.ogl import *
+from obj.chj.ogl.objloader import CHJ_tiny_obj, OBJ
+from obj.chj.ogl import light
+
 WIDTH = 400
 HEIGHT = 400
 DISPLAY = (WIDTH * 2, HEIGHT)
 
-# collision detection between two players
-def isColliding(a, b):
-    diff = np.subtract(a.pos, b.pos)
+# 2D collision detection between two players
+def isColliding(object1, object2):
+    diff = np.subtract(object1.pos, object2.pos)
     d = np.sqrt(diff[0] ** 2 + diff[1] ** 2)
-    return d <= a.size + b.size
+    return d <= object1.size + object2.size
 
-# dynamic-dynamic circle collision response handler
-def handleCollision(player1, player2):
-    diff = np.subtract(player2.pos, player1.pos)
+# 2D dynamic-dynamic circle collision response handler
+def handleCollision(object1, object2):
+    diff = np.subtract(object2.pos, object1.pos)
     dist = np.sqrt(diff[0] ** 2 + diff[1] ** 2)
-    n = diff / dist
-    correction = player1.size + player2.size - dist
-    player1.pos = np.subtract(player1.pos, n * correction / 2)
-    player2.pos = np.add(player2.pos, n * correction / 2)
-    p = np.dot(player1.velocity, n[0:2]) - np.dot(player2.velocity, n[0:2])
-    player1.velocity = np.subtract(player1.velocity, p * n[0:2])
-    player2.velocity = np.add(player2.velocity, p * n[0:2])
+    n = diff[0:2] / dist
+    # correct clipping
+    correction = object1.size + object2.size - dist
+    object1.pos[0:2] = np.subtract(object1.pos[0:2], n * correction / 2)
+    object2.pos[0:2] = np.add(object2.pos[0:2], n * correction / 2)
+    p = 2 * (np.dot(object1.velocity, n) - np.dot(object2.velocity, n)) / (object1.mass + object2.mass)
+    object1.velocity = np.subtract(object1.velocity, p * object2.mass * n)
+    object2.velocity = np.add(object2.velocity, p * object1.mass * n)
 
-def handleBoundary(player, bound):
+# 2D boundary collision response handler
+def handleBoundary(object, bound):
     for i in range(2):
-        if (abs(player.pos[i]) + player.size) > bound:
-            player.pos[i] += - np.sign(player.pos[i]) * (abs(player.pos[i]) + player.size - bound)
-            player.velocity[i] *= -1
+        if (abs(object.pos[i]) + object.size) > bound:
+            object.pos[i] += - np.sign(object.pos[i]) * (abs(object.pos[i]) + object.size - bound)
+            object.velocity[i] *= -1
 
+# FPS display
+class FPS:
+    def __init__(self):
+        self.clock = pygame.time.Clock()
+        self.font = pygame.font.SysFont('Comic Sans MS', 20)
+        
+    def render(self):
+        self.text = self.font.render(str(round(self.clock.get_fps(), 2)), False, (255, 255, 255, 255)).convert_alpha()
+        self.data = pygame.image.tostring(self.text, "RGBA", True)
+
+
+# ((mass, hp), (bSize, bMass, bLife, bDamage, bDelay, bSpeed), (bAngles))
+pieceStat = {"pawn":   ((1, 100), (2, 0.1, 40, 1, 10, 2), (0,)),
+             "knight": ((1, 100), (1, 0.1, 30, 1, 25, 3), (-10, 0, 10)),
+             "bishop": ((1, 100), (1, 0.1, 30, 1, 25, 3), (-135, -45, 45, 135)),
+             "rook":   ((1, 100), (1, 0.1, 30, 1, 25, 3), (-90, 0, 90, 180)),
+             "queen":  ((1, 100), (1, 0.1, 30, 2, 25, 3), (-135, -90, -45, 0, 45, 90, 135, 180)),
+             "king":   ((1, 100), (2, 0.1, 30, 1, 25, 2), (-135, -90, -45, 0, 45, 90, 135, 180))}
+
+# player
 class Player:
 
-    def __init__(self, pos, size, angle, hp):
+    # initialization
+    def __init__(self, pos, angle, type):
+        # player parameters
         self.pos = np.array(pos)
-        self.size = size * 0.01
-        self.angle = np.deg2rad(angle)
+        self.size = 0.05
+        self.mass, self.hp = pieceStat[type][0]
+        self.angle = angle
         self.rotateDir = 0
         self.acc = np.array([0.0, 0.0])
         self.velocity = np.array([0.0, 0.0])
+        # shoot key pressed
         self.isShoot = False
-        self.bulletDelay = 0
-        self.hp = hp
+        # bullet delay timer
+        self.timer = 0
+        # bullet parameters
+        self.bSize, self.bMass, self.bLife, self.bDamage, self.bDelay, self.bSpeed = pieceStat[type][1]
+        self.bAngles = pieceStat[type][2]
+        # bullet list
+        self.bullets = []
+        # model
+        self.type = type
+        self.obj = OBJ('vox/', type + '.obj', swapyz=True)
+        self.obj.create_bbox()
+        self.obj.create_gl_list()
     
+    # update position
     def update(self):
-        self.angle += np.deg2rad(self.rotateDir)
+        # update angle
+        self.angle += self.rotateDir
         accnorm = np.linalg.norm(self.acc, 2)
-        cosine = np.cos(self.angle)
-        sine = np.sin(self.angle)
+        cosine = np.cos(np.deg2rad(self.angle))
+        sine = np.sin(np.deg2rad(self.angle))
+        # rotation matrix for acceleration
         rot = np.array([[cosine, -sine],
                         [sine, cosine]])
-        # update velocity with acceleration
         if accnorm:
+            # normalize acceleration
             nacc = self.acc / accnorm
+            # update velocity applying acceleration
             self.velocity = np.add(self.velocity, 0.001 * rot @ nacc)
-            velonorm = np.linalg.norm(self.velocity, 2)
-            if velonorm >= 0.02:
-                self.velocity /= velonorm
-                self.velocity *= 0.02
-        # dynamic friction
         if np.linalg.norm(self.velocity, 2):
+            # dynamic friction
             friction = self.velocity / np.linalg.norm(self.velocity, 2) * 0.0005
+            # update velocity applying friction
             for i in range(2):
                 if (abs(self.velocity[i]) < abs(friction[i])):
                     self.velocity[i] = 0
                 else:
                     self.velocity[i] -= friction[i]
+        # limit maximum velocity
+        velonorm = np.linalg.norm(self.velocity, 2)
+        if velonorm >= 0.02:
+            self.velocity /= velonorm
+            self.velocity *= 0.02
         # update position
         self.pos[0:2] = np.add(self.pos[0:2], self.velocity)
 
+    # shoot bullets
+    def shoot(self):
+        if self.isShoot and self.timer == 0:
+            self.timer = 1
+            pos = self.pos.copy()
+            pos[2] = 0.05
+            # shoot bullets into bAngles
+            for angle in self.bAngles:
+                self.bullets.append(Bullet(pos, self.bSize, self.bMass, self.bLife, self.bSpeed, angle + self.angle))
+        # update bullet delay timer
+        if self.timer:
+            self.timer += 1
+            if self.timer == self.bDelay:
+                self.timer = 0
+    
+    # draw bullets and player
     def draw(self):
+        # draw bullets
+        for bullet in self.bullets:
+            bullet.draw()
+        # draw player
         glPushMatrix()
         glTranslatef(*self.pos)
-        cylinder = gluNewQuadric()
-        gluCylinder(cylinder, self.size, self.size, 0.1, 10, 1)
+        glRotatef(self.angle, 0, 0, 1)
+        # cylinder = gluNewQuadric()
+        # gluCylinder(cylinder, self.size, self.size, 0.1, 10, 1)
+        glScalef(0.125, 0.125, 0.125)
+        glCallList(self.obj.gl_list)
         glPopMatrix()
 
+# bullet
 class Bullet:
 
-    # Initializes position, size, speed, and angle
-    def __init__(self, pos, size, speed, angle):
+    # initialization
+    def __init__(self, pos, size, mass, life, speed, angle):
         self.pos = np.copy(pos)
         self.size = 0.01 * size
-        self.speed = 0.01 * speed
-        self.velocity = self.speed * np.array([np.cos(np.deg2rad(angle)), np.sin(np.deg2rad(angle))])
-        self.distance = 0
+        self.mass = mass
+        self.life = life
+        self.velocity = 0.01 * speed * np.array([np.cos(np.deg2rad(angle)), np.sin(np.deg2rad(angle))])
     
-    # update position
+    # update life and position
     def update(self):
-        self.distance += self.speed
+        self.life -= 1
         self.pos[0:2] = np.add(self.pos[0:2], self.velocity)
     
-    # create a bullet
+    # draw a bullet
     def draw(self):
         glPushMatrix()
         glTranslatef(*self.pos)
         sphere = gluNewQuadric()
         gluSphere(sphere, self.size, 10, 10)
         glPopMatrix()
-    
 
-
+# particles
 class Particles:
 
+    # initialization
     def __init__(self, pos):
         self.initialpos = np.copy(pos)
         self.displacement = np.zeros((10, 3))
@@ -114,20 +184,25 @@ class Particles:
         self.color = np.tile(np.array([np.random.random_sample(10)]).T, (1, 3))
         self.life = np.random.randint(40, 50, 10)
     
+    # update life and position
     def update(self):
-        self.displacement = np.add(self.displacement, self.velocity)
         for i in range(10):
             if self.life[i]:
                 self.life[i] -= 1
+        self.displacement = np.add(self.displacement, self.velocity)
 
+    # draw particles
     def draw(self):
         size = 0.008
         glPushMatrix()
+        # translation to initial position
         glTranslatef(*self.initialpos)
+        # make particles face the camera
         arr0 = np.array(glGetFloatv(GL_MODELVIEW_MATRIX))
         arr0[3, 0:3] = np.zeros(3)
         glMultMatrixf(arr0.T)
         glBegin(GL_QUADS)
+        # draw particles
         for i in range(10):
             if (self.life[i]):
                 glColor3f(*self.color[i])
@@ -138,14 +213,19 @@ class Particles:
         glEnd()
         glPopMatrix()
 
+# particle system
 class ParticleSystem:
+
+    # initialization
     def __init__(self):
         self.particleList = []
         
+    # add particles to system
     def add(self, pos):
         for i in range(1):
             self.particleList.append(Particles(pos))
 
+    # update particles in a system
     def update(self):
         for particles in self.particleList:
             particles.update()
@@ -153,6 +233,7 @@ class ParticleSystem:
                 self.particleList.remove(particles)
                 del particles
     
+    # draw particles in a system
     def draw(self):
         for particles in self.particleList:
             particles.draw()
@@ -160,11 +241,6 @@ class ParticleSystem:
 
 class Game:
     def __init__(self):
-        self.player1 = Player(pos = [-0.5, 0, 0], size=5, angle=0, hp=200)
-        self.player1bullets = []
-        self.player2 = Player(pos = [0.5, 0, 0], size=5, angle=180, hp=200)
-        self.player2bullets = []
-        self.numHits = 0
         self.particleSys = ParticleSystem()
 
     # Duplicated from assignment 2
@@ -184,42 +260,33 @@ class Game:
         glLightfv(GL_LIGHT0, GL_POSITION, lightPosition)
         glEnable(GL_LIGHT0)
     
-    # Update bullets info
-    def updateBullets(self):
-        # Destroy the bullets after moving certain distance. Currently 1.
-        for bullet in self.player1bullets:
+    # update bullets of a regarding b
+    def updateBullets(self, a, b):
+        for bullet in a.bullets:
             bullet.update()
-            if abs(bullet.distance) >= 1:
-                self.player1bullets.remove(bullet)
+            if bullet.life == 0:
+                a.bullets.remove(bullet)
                 del bullet
-            elif isColliding(bullet, self.player2):
+            elif isColliding(bullet, b):
+                handleCollision(bullet, b)
                 self.particleSys.add(bullet.pos)
-                self.player2.hp -= 1
-                self.player1bullets.remove(bullet)
-                del bullet
-        for bullet in self.player2bullets:
-            bullet.update()
-            if abs(bullet.distance) >= 1:
-                self.player2bullets.remove(bullet)
-                del bullet
-            elif isColliding(bullet, self.player1):
-                self.particleSys.add(bullet.pos)
-                self.player1.hp -= 1
-                self.player2bullets.remove(bullet)
+                b.hp -= a.bDamage
+                if b.hp <= 0:
+                    b.hp = 0
+                a.bullets.remove(bullet)
                 del bullet
 
+    # draw objects
     def draw(self):
-        self.drawBoard()
-        # Visualize bullets
-        glColor3f(1.0, 0.0, 0.0)
+        # draw player1
+        glColor3f(0.2, 0.2, 0.2)
         self.player1.draw()
-        for bullet in self.player1bullets:
-            bullet.draw()
-        glColor3f(0.0, 1.0, 0.0)
+        # draw player2
+        glColor3f(0.9, 0.9, 0.9)
         self.player2.draw()
-        for bullet in self.player2bullets:
-            bullet.draw()
-        # visualize players
+        # draw board
+        self.drawBoard()
+        # draw particle system
         self.particleSys.draw()
 
 
@@ -245,15 +312,54 @@ class Game:
         glEnd()
         glPopMatrix()
 
+    def drawHPbar(self):
+        p1 = self.player1.hp / pieceStat[self.player1.type][0][1]
+        p2 = self.player2.hp / pieceStat[self.player2.type][0][1]
+
+        glClear(GL_DEPTH_BUFFER_BIT)
+        glViewport(0, 0, WIDTH * 2, HEIGHT)
+
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        glOrtho(-2, 2, -1, 1, -1, 1)
+
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+
+        glBegin(GL_QUADS)
+        # player1 HP bar
+        r = min(1, 2 * (1 - p1))
+        g = min(1, 2 * p1)
+        glColor3f(r, g, 0)
+        glVertex3f(-1.8 * p1 - 0.1, 0.9, 0)
+        glVertex3f(-0.1, 0.9, 0)
+        glVertex3f(-0.1, 0.8, 0)
+        glVertex3f(-1.8 * p1 - 0.1, 0.8, 0)
+        # player2 HP bar
+        r = min(1, 2 * (1 - p2))
+        g = min(1, 2 * p2)
+        glColor3f(r, g, 0)
+        glVertex3f(1.8 * p2 + 0.1, 0.9, 0)
+        glVertex3f(0.1, 0.9, 0)
+        glVertex3f(0.1, 0.8, 0)
+        glVertex3f(1.8 * p2 + 0.1, 0.8, 0)
+
+        glEnd()
+
+
+
     # pygame-based interface
     def display(self):
         pygame.init()
         pygame.display.set_mode(DISPLAY, DOUBLEBUF|OPENGL)
 
-        myfont = pygame.font.SysFont('Comic Sans MS', 30)
+        self.player1 = Player(pos=[-0.5, 0, 0], angle=0, type="pawn")
+        self.player2 = Player(pos=[0.5, 0, 0], angle=180, type="queen")
+
+        fps = FPS()
+
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        tick = 0
 
         self.light()
 
@@ -262,10 +368,6 @@ class Game:
         while run:
             glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
             glClearColor(0, 0, 0, 1)
-            player1hp_surface = myfont.render('Player1 HP: ' + str(self.player1.hp), False, (255, 255, 255, 255)).convert_alpha()
-            player2hp_surface = myfont.render('Player2 HP: ' + str(self.player2.hp), False, (255, 255, 255, 255)).convert_alpha()
-            player1hp_textdata = pygame.image.tostring(player1hp_surface, "RGBA", True)
-            player2hp_textdata = pygame.image.tostring(player2hp_surface, "RGBA", True)
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -341,74 +443,49 @@ class Game:
                         self.player2.rotateDir -= 2
                     elif event.key == pygame.K_RIGHTBRACKET :
                         self.player2.rotateDir += 2
-
-            if self.player1.isShoot and self.player1.bulletDelay == 0:
-                pos = self.player1.pos.copy()
-                pos[2] = 0.05
-                self.player1.bulletDelay = 1
-                self.player1bullets.append(Bullet(pos=pos, size=1, speed=3, angle=np.rad2deg(self.player1.angle)))   # a straight bullet
-                self.player1bullets.append(Bullet(pos=pos, size=1, speed=3, angle=np.rad2deg(self.player1.angle)+10)) # a right sided bullet
-                self.player1bullets.append(Bullet(pos=pos, size=1, speed=3, angle=np.rad2deg(self.player1.angle)-10))  # a left sided bullet
             
-            if self.player2.isShoot and self.player2.bulletDelay == 0:
-                pos = self.player2.pos.copy()
-                pos[2] = 0.05
-                self.player2.bulletDelay = 1
-                self.player2bullets.append(Bullet(pos=pos, size=1, speed=3, angle=np.rad2deg(self.player2.angle)))   # a straight bullet
-                self.player2bullets.append(Bullet(pos=pos, size=1, speed=3, angle=np.rad2deg(self.player2.angle)+10)) # a right sided bullet
-                self.player2bullets.append(Bullet(pos=pos, size=1, speed=3, angle=np.rad2deg(self.player2.angle)-10))  # a left sided bullet
-
-            keypress = pygame.key.get_pressed()
-
-            if self.player1.bulletDelay:
-                self.player1.bulletDelay += 1
-                if self.player1.bulletDelay == 25:
-                    self.player1.bulletDelay = 0
-            
-            if self.player2.bulletDelay:
-                self.player2.bulletDelay += 1
-                if self.player2.bulletDelay == 25:
-                    self.player2.bulletDelay = 0
-
             self.player1.update()
             self.player2.update()
             if isColliding(self.player1, self.player2):
                 handleCollision(self.player1, self.player2)
             handleBoundary(self.player1, 0.8)
             handleBoundary(self.player2, 0.8)
-            self.updateBullets()
+            self.player1.shoot()
+            self.player2.shoot()
+            self.updateBullets(self.player1, self.player2)
+            self.updateBullets(self.player2, self.player1)
             self.particleSys.update()
 
             glViewport(0, 0, WIDTH, HEIGHT)
             glMatrixMode(GL_PROJECTION)
             glLoadIdentity()
-            # Perspective (tentative)
+            # projection matrix
             gluPerspective(60, WIDTH/HEIGHT, 0.1, 50)
-            # glOrtho(-0.5, 0.5, -0.5, 0.5, -10, 10)
             glMatrixMode(GL_MODELVIEW)
             glLoadIdentity()
-            # View (tentative)
-            gluLookAt(self.player1.pos[0] - 0.5 * np.cos(self.player1.angle), self.player1.pos[1] - 0.5 * np.sin(self.player1.angle), 0.5,
-                      self.player1.pos[0] + 0.5 * np.cos(self.player1.angle), self.player1.pos[1] + 0.5 * np.sin(self.player1.angle), 0,
+            # player 1 view
+            gluLookAt(self.player1.pos[0] - 0.5 * np.cos(np.deg2rad(self.player1.angle)), self.player1.pos[1] - 0.5 * np.sin(np.deg2rad(self.player1.angle)), 0.5,
+                      self.player1.pos[0] + 0.5 * np.cos(np.deg2rad(self.player1.angle)), self.player1.pos[1] + 0.5 * np.sin(np.deg2rad(self.player1.angle)), 0,
                       0, 0, 1)
             self.draw()
+            
             glViewport(WIDTH, 0, WIDTH, HEIGHT)
-
             glMatrixMode(GL_MODELVIEW)
             glLoadIdentity()
-            # View (tentative)
-            gluLookAt(self.player2.pos[0] - 0.5 * np.cos(self.player2.angle), self.player2.pos[1] - 0.5 * np.sin(self.player2.angle), 0.5,
-                      self.player2.pos[0] + 0.5 * np.cos(self.player2.angle), self.player2.pos[1] + 0.5 * np.sin(self.player2.angle), 0,
+            # player 2 view
+            gluLookAt(self.player2.pos[0] - 0.5 * np.cos(np.deg2rad(self.player2.angle)), self.player2.pos[1] - 0.5 * np.sin(np.deg2rad(self.player2.angle)), 0.5,
+                      self.player2.pos[0] + 0.5 * np.cos(np.deg2rad(self.player2.angle)), self.player2.pos[1] + 0.5 * np.sin(np.deg2rad(self.player2.angle)), 0,
                       0, 0, 1)
             self.draw()
 
-            glWindowPos2d(20, HEIGHT-50)
-            glDrawPixels(player1hp_surface.get_width(), player1hp_surface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, player1hp_textdata)
-            glWindowPos2d(WIDTH+20, HEIGHT-50)
-            glDrawPixels(player2hp_surface.get_width(), player2hp_surface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, player2hp_textdata)
+            self.drawHPbar()
+
+            glWindowPos2d(20, 20)
+            fps.render()
+            glDrawPixels(fps.text.get_width(), fps.text.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, fps.data)
 
             pygame.display.flip()
-            pygame.time.wait(10)
+            fps.clock.tick(60)
 
 
 game = Game()
