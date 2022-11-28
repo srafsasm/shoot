@@ -19,6 +19,8 @@ class MarkingBoard:
     # 보드 color 정보 받아서 그리는 함수
     def draw(self, movable):
         glPushMatrix()
+        glRotatef(90, 1, 0, 0)
+        glTranslatef(0, 0.0855, 0)
         glTranslatef(-4 * self.recSide, 0, -4 * self.recSide)
         for i in range(8):
             for j in range(8):
@@ -26,11 +28,12 @@ class MarkingBoard:
                 
                 # 빈칸, 지금은 표시한다고 선을 그리게 했지만 실제 보드 오브젝트를 그린 후에는 선을 지우는게 좋을 것 같아요
                 if movable[7-i][j] == 0:
-                    glColor3f(1.0, 1.0, 1.0)
-                    glBegin(GL_LINES)
-                    for vertice in self.vertexPoints[k]:
-                        glVertex3f(vertice[1], 0.0, vertice[0])
-                    glEnd()
+                    # glColor3f(1.0, 1.0, 1.0)
+                    # glBegin(GL_LINES)
+                    # for vertice in self.vertexPoints[k]:
+                    #     glVertex3f(vertice[1], 0.0, vertice[0])
+                    # glEnd()
+                    pass
                 # 이동 가능한 칸
                 elif movable[7-i][j] == 1:
                     glColor3f(0.0, 0.0, 1.0)
