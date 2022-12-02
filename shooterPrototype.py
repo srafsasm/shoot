@@ -52,12 +52,12 @@ class FPS:
 
 
 # ((mass, hp), (bSize, bMass, bLife, bDamage, bDelay, bSpeed), (bAngles))
-pieceStat = {"pawn":   ((1, 100), (2, 0.1, 40, 1, 10, 2), (0,)),
-             "knight": ((1, 100), (1, 0.1, 30, 1, 25, 3), (-10, 0, 10)),
-             "bishop": ((1, 100), (1, 0.1, 30, 1, 25, 3), (-135, -45, 45, 135)),
-             "rook":   ((1, 100), (1, 0.1, 30, 1, 25, 3), (-90, 0, 90, 180)),
-             "queen":  ((1, 100), (1, 0.1, 30, 2, 25, 3), (-135, -90, -45, 0, 45, 90, 135, 180)),
-             "king":   ((1, 100), (2, 0.1, 30, 1, 25, 2), (-135, -90, -45, 0, 45, 90, 135, 180))}
+pieceStat = {"pawn":   ((1, 20), (2, 0.1, 40, 1, 10, 2), (0,)),
+             "knight": ((1, 20), (1, 0.1, 30, 1, 25, 3), (-10, 0, 10)),
+             "bishop": ((1, 20), (1, 0.1, 30, 1, 25, 3), (-135, -45, 45, 135)),
+             "rook":   ((1, 20), (1, 0.1, 30, 1, 25, 3), (-90, 0, 90, 180)),
+             "queen":  ((1, 20), (1, 0.1, 30, 2, 25, 3), (-135, -90, -45, 0, 45, 90, 135, 180)),
+             "king":   ((1, 20), (2, 0.1, 30, 1, 25, 2), (-135, -90, -45, 0, 45, 90, 135, 180))}
 
 # player
 class Player:
@@ -91,6 +91,10 @@ class Player:
     def update(self):
         # update angle
         self.angle += self.rotateDir
+        if self.angle < -180:
+            self.angle += 360
+        if self.angle > 180:
+            self.angle -= 360
         accnorm = np.linalg.norm(self.acc, 2)
         cosine = np.cos(np.deg2rad(self.angle))
         sine = np.sin(np.deg2rad(self.angle))
@@ -173,6 +177,22 @@ class Bullet:
         gluSphere(sphere, self.size, 10, 10)
         glPopMatrix()
 
+# update bullets of a regarding b
+def updateBullets(a, b, particle_system):
+    for bullet in a.bullets:
+        bullet.update()
+        if bullet.life == 0:
+            a.bullets.remove(bullet)
+            del bullet
+        elif isColliding(bullet, b):
+            handleCollision(bullet, b)
+            particle_system.add(bullet.pos)
+            b.hp -= a.bDamage
+            if b.hp <= 0:
+                b.hp = 0
+            a.bullets.remove(bullet)
+            del bullet
+
 # particles
 class Particles:
 
@@ -238,6 +258,62 @@ class ParticleSystem:
         for particles in self.particleList:
             particles.draw()
 
+def drawBoard():
+    glPushMatrix()
+    squareSize = 0.2
+    x = -4
+    y = -4
+    glColor3f(1.0, 1.0, 1.0)
+    glBegin(GL_QUADS)
+    for i in range(8):
+        for j in range(4):
+            glVertex3f(x * squareSize, y * squareSize, 0)
+            glVertex3f((x + 1) * squareSize, y * squareSize, 0)
+            glVertex3f((x + 1) * squareSize, (y + 1) * squareSize, 0)
+            glVertex3f(x * squareSize, (y + 1) * squareSize, 0)
+            x += 2
+        if x == 4:
+            x = -3
+        elif x == 5:
+            x = -4
+        y += 1
+    glEnd()
+    glPopMatrix()
+
+def drawHPbar(player1, player2):
+    p1 = player1.hp / pieceStat[player1.type][0][1]
+    p2 = player2.hp / pieceStat[player2.type][0][1]
+
+    glClear(GL_DEPTH_BUFFER_BIT)
+    glViewport(0, 0, WIDTH * 2, HEIGHT)
+
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    glOrtho(-2, 2, -1, 1, -1, 1)
+
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
+
+    glBegin(GL_QUADS)
+    # player1 HP bar
+    r = min(1, 2 * (1 - p1))
+    g = min(1, 2 * p1)
+    glColor3f(r, g, 0)
+    glVertex3f(-1.8 * p1 - 0.1, 0.9, 0)
+    glVertex3f(-0.1, 0.9, 0)
+    glVertex3f(-0.1, 0.8, 0)
+    glVertex3f(-1.8 * p1 - 0.1, 0.8, 0)
+    # player2 HP bar
+    r = min(1, 2 * (1 - p2))
+    g = min(1, 2 * p2)
+    glColor3f(r, g, 0)
+    glVertex3f(1.8 * p2 + 0.1, 0.9, 0)
+    glVertex3f(0.1, 0.9, 0)
+    glVertex3f(0.1, 0.8, 0)
+    glVertex3f(1.8 * p2 + 0.1, 0.8, 0)
+
+    glEnd()
+
 
 class Game:
     def __init__(self):
@@ -259,102 +335,25 @@ class Game:
         glLightfv(GL_LIGHT0, GL_SPECULAR, lightSpecular)
         glLightfv(GL_LIGHT0, GL_POSITION, lightPosition)
         glEnable(GL_LIGHT0)
-    
-    # update bullets of a regarding b
-    def updateBullets(self, a, b):
-        for bullet in a.bullets:
-            bullet.update()
-            if bullet.life == 0:
-                a.bullets.remove(bullet)
-                del bullet
-            elif isColliding(bullet, b):
-                handleCollision(bullet, b)
-                self.particleSys.add(bullet.pos)
-                b.hp -= a.bDamage
-                if b.hp <= 0:
-                    b.hp = 0
-                a.bullets.remove(bullet)
-                del bullet
 
     # draw objects
-    def draw(self):
+    def drawobjects(self):
         # draw player1
         glColor3f(0.2, 0.2, 0.2)
         self.player1.draw()
         # draw player2
         glColor3f(0.9, 0.9, 0.9)
         self.player2.draw()
-        # draw board
-        self.drawBoard()
         # draw particle system
         self.particleSys.draw()
 
-
-    def drawBoard(self):
-        glPushMatrix()
-        squareSize = 0.2
-        x = -4
-        y = -4
-        glColor3f(1.0, 1.0, 1.0)
-        glBegin(GL_QUADS)
-        for i in range(8):
-            for j in range(4):
-                glVertex3f(x * squareSize, y * squareSize, 0)
-                glVertex3f((x + 1) * squareSize, y * squareSize, 0)
-                glVertex3f((x + 1) * squareSize, (y + 1) * squareSize, 0)
-                glVertex3f(x * squareSize, (y + 1) * squareSize, 0)
-                x += 2
-            if x == 4:
-                x = -3
-            elif x == 5:
-                x = -4
-            y += 1
-        glEnd()
-        glPopMatrix()
-
-    def drawHPbar(self):
-        p1 = self.player1.hp / pieceStat[self.player1.type][0][1]
-        p2 = self.player2.hp / pieceStat[self.player2.type][0][1]
-
-        glClear(GL_DEPTH_BUFFER_BIT)
-        glViewport(0, 0, WIDTH * 2, HEIGHT)
-
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        glOrtho(-2, 2, -1, 1, -1, 1)
-
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-
-        glBegin(GL_QUADS)
-        # player1 HP bar
-        r = min(1, 2 * (1 - p1))
-        g = min(1, 2 * p1)
-        glColor3f(r, g, 0)
-        glVertex3f(-1.8 * p1 - 0.1, 0.9, 0)
-        glVertex3f(-0.1, 0.9, 0)
-        glVertex3f(-0.1, 0.8, 0)
-        glVertex3f(-1.8 * p1 - 0.1, 0.8, 0)
-        # player2 HP bar
-        r = min(1, 2 * (1 - p2))
-        g = min(1, 2 * p2)
-        glColor3f(r, g, 0)
-        glVertex3f(1.8 * p2 + 0.1, 0.9, 0)
-        glVertex3f(0.1, 0.9, 0)
-        glVertex3f(0.1, 0.8, 0)
-        glVertex3f(1.8 * p2 + 0.1, 0.8, 0)
-
-        glEnd()
-
-
-
     # pygame-based interface
     def display(self):
+        ############################
+        # game initialization here #
+        ############################
         pygame.init()
         pygame.display.set_mode(DISPLAY, DOUBLEBUF|OPENGL)
-
-        self.player1 = Player(pos=[-0.5, 0, 0], angle=0, type="pawn")
-        self.player2 = Player(pos=[0.5, 0, 0], angle=180, type="queen")
 
         fps = FPS()
 
@@ -366,126 +365,222 @@ class Game:
         run = True
 
         while run:
-            glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-            glClearColor(0, 0, 0, 1)
+
+            ####################
+            # chess phase here #
+            ####################
+
+            phase_shoot = True
+            
+            self.player1 = Player(pos=[-0.5, 0, 0], angle=0, type="pawn")
+            self.player2 = Player(pos=[0.5, 0, 0], angle=180, type="queen")
+
+            # shoot-phase
+            while phase_shoot:
+                glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
+                glClearColor(0, 0, 0, 1)
+
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        run = False
+                        phase_shoot = False
+                    
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_ESCAPE:
+                            run = False
+                            phase_shoot = False
+
+                        elif event.key == pygame.K_t:
+                            self.player1.isShoot = True
+                        elif event.key == pygame.K_LEFTBRACKET:
+                            self.player2.isShoot = True
+
+                        elif event.key == pygame.K_i:
+                            self.player2.acc[0] += 1
+                        elif event.key == pygame.K_k:
+                            self.player2.acc[0] -= 1
+                        elif event.key == pygame.K_j:
+                            self.player2.acc[1] += 1
+                        elif event.key == pygame.K_l:
+                            self.player2.acc[1] -= 1
+                        
+                        elif event.key == pygame.K_w:
+                            self.player1.acc[0] += 1
+                        elif event.key == pygame.K_s:
+                            self.player1.acc[0] -= 1
+                        elif event.key == pygame.K_a:
+                            self.player1.acc[1] += 1
+                        elif event.key == pygame.K_d:
+                            self.player1.acc[1] -= 1
+
+                        elif event.key == pygame.K_r:
+                            self.player1.rotateDir += 2
+                        elif event.key == pygame.K_y:
+                            self.player1.rotateDir -= 2
+
+                        elif event.key == pygame.K_p:
+                            self.player2.rotateDir += 2
+                        elif event.key == pygame.K_RIGHTBRACKET:
+                            self.player2.rotateDir -= 2
+                                
+                    if event.type == pygame.KEYUP:
+                        if event.key == pygame.K_t:
+                            self.player1.isShoot = False
+                        elif event.key == pygame.K_LEFTBRACKET:
+                            self.player2.isShoot = False
+                        
+                        elif event.key == pygame.K_i:
+                            self.player2.acc[0] -= 1
+                        elif event.key == pygame.K_k:
+                            self.player2.acc[0] += 1
+                        elif event.key == pygame.K_j:
+                            self.player2.acc[1] -= 1
+                        elif event.key == pygame.K_l:
+                            self.player2.acc[1] += 1
+                        
+                        elif event.key == pygame.K_w:
+                            self.player1.acc[0] -= 1
+                        elif event.key == pygame.K_s:
+                            self.player1.acc[0] += 1
+                        elif event.key == pygame.K_a:
+                            self.player1.acc[1] -= 1
+                        elif event.key == pygame.K_d:
+                            self.player1.acc[1] += 1
+
+                        elif event.key == pygame.K_r:
+                            self.player1.rotateDir -= 2
+                        elif event.key == pygame.K_y:
+                            self.player1.rotateDir += 2
+                        
+                        elif event.key == pygame.K_p:
+                            self.player2.rotateDir -= 2
+                        elif event.key == pygame.K_RIGHTBRACKET:
+                            self.player2.rotateDir += 2
+                
+                self.player1.update()
+                self.player2.update()
+                if isColliding(self.player1, self.player2):
+                    handleCollision(self.player1, self.player2)
+                handleBoundary(self.player1, 0.8)
+                handleBoundary(self.player2, 0.8)
+                self.player1.shoot()
+                self.player2.shoot()
+                updateBullets(self.player1, self.player2, self.particleSys)
+                updateBullets(self.player2, self.player1, self.particleSys)
+                self.particleSys.update()
+
+                if (self.player1.hp == 0 or self.player2.hp == 0):
+                    phase_shoot = False
+
+                glViewport(0, 0, WIDTH, HEIGHT)
+                glMatrixMode(GL_PROJECTION)
+                glLoadIdentity()
+                # projection matrix
+                gluPerspective(60, WIDTH/HEIGHT, 0.1, 50)
+                glMatrixMode(GL_MODELVIEW)
+                glLoadIdentity()
+                # player 1 view
+                gluLookAt(self.player1.pos[0] - 0.5 * np.cos(np.deg2rad(self.player1.angle)), self.player1.pos[1] - 0.5 * np.sin(np.deg2rad(self.player1.angle)), 0.5,
+                        self.player1.pos[0] + 0.5 * np.cos(np.deg2rad(self.player1.angle)), self.player1.pos[1] + 0.5 * np.sin(np.deg2rad(self.player1.angle)), 0,
+                        0, 0, 1)
+                self.drawobjects()
+                drawBoard()
+
+                glViewport(WIDTH, 0, WIDTH, HEIGHT)
+                glMatrixMode(GL_MODELVIEW)
+                glLoadIdentity()
+                # player 2 view
+                gluLookAt(self.player2.pos[0] - 0.5 * np.cos(np.deg2rad(self.player2.angle)), self.player2.pos[1] - 0.5 * np.sin(np.deg2rad(self.player2.angle)), 0.5,
+                        self.player2.pos[0] + 0.5 * np.cos(np.deg2rad(self.player2.angle)), self.player2.pos[1] + 0.5 * np.sin(np.deg2rad(self.player2.angle)), 0,
+                        0, 0, 1)
+
+                self.drawobjects()
+                drawBoard()
+
+                drawHPbar(self.player1, self.player2)
+
+                glWindowPos2d(20, 20)
+                fps.render()
+                glDrawPixels(fps.text.get_width(), fps.text.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, fps.data)
+
+                pygame.display.flip()
+                fps.clock.tick(60)
+
+            if not run:
+                break
+
+            # reset camera
+            while self.player1.bullets:
+                bullet = self.player1.bullets.pop()
+                del bullet
+            while self.player2.bullets:
+                bullet = self.player2.bullets.pop()
+                del bullet
+
+            dx1 = (-0.5 - self.player1.pos[0]) / 60
+            dy1 = (0.0 - self.player1.pos[1]) / 60
+            da1 = (0 - self.player1.angle) / 60
+
+            dx2 = (0.5 - self.player2.pos[0]) / 60
+            dy2 = (0.0 - self.player2.pos[1]) / 60
+            da2 = (180 - self.player2.angle) / 60
+
+            p1x = self.player1.pos[0]
+            p1y = self.player1.pos[1]
+            p1a = self.player1.angle
+            p2x = self.player2.pos[0]
+            p2y = self.player2.pos[1]
+            p2a = self.player2.angle
+            for i in range(60):
+                p1x += dx1 
+                p1y += dy1
+                p1a += da1
+                p2x += dx2
+                p2y += dy2
+                p2a += da2
+
+                self.particleSys.update()
+
+                glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
+                glClearColor(0, 0, 0, 1)
+
+                glMatrixMode(GL_PROJECTION)
+                glLoadIdentity()
+                # projection matrix
+                gluPerspective(60, WIDTH/HEIGHT, 0.1, 50)
+
+                glViewport(0, 0, WIDTH, HEIGHT)
+                glMatrixMode(GL_MODELVIEW)
+                glLoadIdentity()
+                gluLookAt(p1x - 0.5 * np.cos(np.deg2rad(p1a)), p1y - 0.5 * np.sin(np.deg2rad(p1a)), 0.5,
+                        p1x + 0.5 * np.cos(np.deg2rad(p1a)), p1y + 0.5 * np.sin(np.deg2rad(p1a)), 0,
+                        0, 0, 1)
+                self.drawobjects()
+                drawBoard()
+
+                glViewport(WIDTH, 0, WIDTH, HEIGHT)
+                glMatrixMode(GL_MODELVIEW)
+                glLoadIdentity()
+                gluLookAt(p2x - 0.5 * np.cos(np.deg2rad(p2a)), p2y - 0.5 * np.sin(np.deg2rad(p2a)), 0.5,
+                        p2x + 0.5 * np.cos(np.deg2rad(p2a)), p2y + 0.5 * np.sin(np.deg2rad(p2a)), 0,
+                        0, 0, 1)
+                self.drawobjects()
+                drawBoard()
+
+                drawHPbar(self.player1, self.player2)
+
+                glWindowPos2d(20, 20)
+                fps.render()
+                glDrawPixels(fps.text.get_width(), fps.text.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, fps.data)
+
+                pygame.display.flip()
+                fps.clock.tick(60)
+
+            del self.player1
+            del self.player2
 
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    run = False
-                
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        run = False
-
-                    elif event.key == pygame.K_t:
-                        self.player1.isShoot = True
-                    elif event.key == pygame.K_LEFTBRACKET:
-                        self.player2.isShoot = True
-
-                    elif event.key == pygame.K_i:
-                        self.player2.acc[0] += 1
-                    elif event.key == pygame.K_k:
-                        self.player2.acc[0] -= 1
-                    elif event.key == pygame.K_j:
-                        self.player2.acc[1] += 1
-                    elif event.key == pygame.K_l:
-                        self.player2.acc[1] -= 1
-                    
-                    elif event.key == pygame.K_w:
-                        self.player1.acc[0] += 1
-                    elif event.key == pygame.K_s:
-                        self.player1.acc[0] -= 1
-                    elif event.key == pygame.K_a:
-                        self.player1.acc[1] += 1
-                    elif event.key == pygame.K_d:
-                        self.player1.acc[1] -= 1
-
-                    elif event.key == pygame.K_r:
-                        self.player1.rotateDir += 2
-                    elif event.key == pygame.K_y:
-                        self.player1.rotateDir -= 2
-
-                    elif event.key == pygame.K_p:
-                        self.player2.rotateDir += 2
-                    elif event.key == pygame.K_RIGHTBRACKET:
-                        self.player2.rotateDir -= 2
-                              
-                if event.type == pygame.KEYUP:
-                    if event.key == pygame.K_t:
-                        self.player1.isShoot = False
-                    elif event.key == pygame.K_LEFTBRACKET:
-                        self.player2.isShoot = False
-                    
-                    elif event.key == pygame.K_i:
-                        self.player2.acc[0] -= 1
-                    elif event.key == pygame.K_k:
-                        self.player2.acc[0] += 1
-                    elif event.key == pygame.K_j:
-                        self.player2.acc[1] -= 1
-                    elif event.key == pygame.K_l:
-                        self.player2.acc[1] += 1
-                    
-                    elif event.key == pygame.K_w:
-                        self.player1.acc[0] -= 1
-                    elif event.key == pygame.K_s:
-                        self.player1.acc[0] += 1
-                    elif event.key == pygame.K_a:
-                        self.player1.acc[1] -= 1
-                    elif event.key == pygame.K_d:
-                        self.player1.acc[1] += 1
-
-                    elif event.key == pygame.K_r:
-                        self.player1.rotateDir -= 2
-                    elif event.key == pygame.K_y:
-                        self.player1.rotateDir += 2
-                    
-                    elif event.key == pygame.K_p :
-                        self.player2.rotateDir -= 2
-                    elif event.key == pygame.K_RIGHTBRACKET :
-                        self.player2.rotateDir += 2
-            
-            self.player1.update()
-            self.player2.update()
-            if isColliding(self.player1, self.player2):
-                handleCollision(self.player1, self.player2)
-            handleBoundary(self.player1, 0.8)
-            handleBoundary(self.player2, 0.8)
-            self.player1.shoot()
-            self.player2.shoot()
-            self.updateBullets(self.player1, self.player2)
-            self.updateBullets(self.player2, self.player1)
-            self.particleSys.update()
-
-            glViewport(0, 0, WIDTH, HEIGHT)
-            glMatrixMode(GL_PROJECTION)
-            glLoadIdentity()
-            # projection matrix
-            gluPerspective(60, WIDTH/HEIGHT, 0.1, 50)
-            glMatrixMode(GL_MODELVIEW)
-            glLoadIdentity()
-            # player 1 view
-            gluLookAt(self.player1.pos[0] - 0.5 * np.cos(np.deg2rad(self.player1.angle)), self.player1.pos[1] - 0.5 * np.sin(np.deg2rad(self.player1.angle)), 0.5,
-                      self.player1.pos[0] + 0.5 * np.cos(np.deg2rad(self.player1.angle)), self.player1.pos[1] + 0.5 * np.sin(np.deg2rad(self.player1.angle)), 0,
-                      0, 0, 1)
-            self.draw()
-            
-            glViewport(WIDTH, 0, WIDTH, HEIGHT)
-            glMatrixMode(GL_MODELVIEW)
-            glLoadIdentity()
-            # player 2 view
-            gluLookAt(self.player2.pos[0] - 0.5 * np.cos(np.deg2rad(self.player2.angle)), self.player2.pos[1] - 0.5 * np.sin(np.deg2rad(self.player2.angle)), 0.5,
-                      self.player2.pos[0] + 0.5 * np.cos(np.deg2rad(self.player2.angle)), self.player2.pos[1] + 0.5 * np.sin(np.deg2rad(self.player2.angle)), 0,
-                      0, 0, 1)
-            self.draw()
-
-            self.drawHPbar()
-
-            glWindowPos2d(20, 20)
-            fps.render()
-            glDrawPixels(fps.text.get_width(), fps.text.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, fps.data)
-
-            pygame.display.flip()
-            fps.clock.tick(60)
+                pass
 
 
 game = Game()
