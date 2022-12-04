@@ -1,4 +1,4 @@
-# Check'em Up
+# Check 'em Up
 
 ## How to Use
 Clone the repository to your directory.
