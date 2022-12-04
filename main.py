@@ -514,7 +514,7 @@ class Game:
                         if self.isGameOver: self.winner = 'Player 1'
                     else:
                         self.isGameOver = self.managedBoard.remove_lost(self.save[0], self.save[1], self.save[2], self.save[3], attacker_won=False)
-                        if self.isGameOver: self.winner = 'Player 2'
+                        if self.isGameOver: self.winner = 'Player 1'
                     self.attacker = None
                     self.save = None
                     self.player1_win = False
@@ -527,7 +527,7 @@ class Game:
                         if self.isGameOver: self.winner = 'Player 2'
                     else:
                         self.isGameOver = self.managedBoard.remove_lost(self.save[0], self.save[1], self.save[2], self.save[3], attacker_won=False)
-                        if self.isGameOver: self.winner = 'Player 1'
+                        if self.isGameOver: self.winner = 'Player 2'
                     self.attacker = None
                     self.save = None
                     self.player1_win = False
