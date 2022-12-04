@@ -128,8 +128,7 @@ class Player:
         self.pos[2] = 0.5
         glPushMatrix()
         glTranslatef(*self.pos)
-        if piece.name[0:5] == "Black":
-            glRotatef(180, 0, 0, 1)
+        glRotatef(self.angle, 0, 0, 1)
         glScale(PIECESIZE, PIECESIZE, PIECESIZE)
         glCallList(piece.obj.gl_list)
         glPopMatrix()       

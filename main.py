@@ -37,10 +37,7 @@ class FPS:
 class Game:
     def __init__(self):
         self.player1 = None
-        self.player1bullets = []
         self.player2 = None
-        self.player2bullets = []
-        self.numHits = 0
         self.particleSys = ParticleSystem()
 
         self.Pieces = []    # a list of chess pieces
@@ -121,14 +118,10 @@ class Game:
 
     def draw(self):
         if self.shoot:
-            glColor3f(1.0, 0.0, 0.0)
+            glColor3f(0.878431, 1.0, 1.0)
             self.player1.draw(self.player1_piece)
-            for bullet in self.player1bullets:
-                bullet.draw()
-            glColor3f(0.0, 1.0, 0.0)
+            glColor3f(0.1, 0.1, 0.1)
             self.player2.draw(self.player2_piece)
-            for bullet in self.player2bullets:
-                bullet.draw()
             self.particleSys.draw()
 
         glPushMatrix()
@@ -419,8 +412,6 @@ class Game:
                                 self.player2.rotateDir -= 2
                             elif event.key == pygame.K_SLASH :
                                 self.player2.rotateDir += 2
-
-            pygame.key.get_pressed()
             
             if self.shoot:
                 self.player1.update()

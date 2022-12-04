@@ -262,13 +262,13 @@ def drawBattlefield():
     for j in range(0, 8):
         for i in range(0, 8):
             if j % 2 == 1 and i % 2 == 0:
-                glColor4f(0, 0, 0, 0.2)
+                glColor4f(1, 1, 1, 0.2)
             elif j % 2 == 1 and i % 2 == 1:
-                glColor4f(1, 1, 1, 0.2)
-            elif j % 2 == 0 and i % 2 == 0:
-                glColor4f(1, 1, 1, 0.2)
-            else:
                 glColor4f(0, 0, 0, 0.2)
+            elif j % 2 == 0 and i % 2 == 0:
+                glColor4f(0, 0, 0, 0.2)
+            else:
+                glColor4f(1, 1, 1, 0.2)
 
             glBegin(GL_TRIANGLES)
             glVertex3f(board[i][j][0]    , board[i][j][1]    , board[i][j][2]     + 0.2)
