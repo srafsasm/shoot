@@ -9,7 +9,7 @@ python main.py
 ```
 to start the game.
 
-## Keyboard Configuration:
+## Keyboard Configuration
 Player 1:\
 T,G,F,H - move\
 x - select a square / shoot a bullet\
