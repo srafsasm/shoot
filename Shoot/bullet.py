@@ -12,22 +12,23 @@ from obj.chj.ogl.objloader import CHJ_tiny_obj, OBJ
 from obj.chj.ogl import light
 
 
+# bullet
 class Bullet:
 
-    # Initializes position, size, speed, and angle
-    def __init__(self, pos, size, speed, angle):
+    # initialization
+    def __init__(self, pos, size, mass, life, speed, angle):
         self.pos = np.copy(pos)
         self.size = 0.01 * size
-        self.speed = 0.01 * speed
-        self.velocity = self.speed * np.array([np.cos(np.deg2rad(angle)), np.sin(np.deg2rad(angle))])
-        self.distance = 0
+        self.mass = mass
+        self.life = life
+        self.velocity = 0.01 * speed * np.array([np.cos(np.deg2rad(angle)), np.sin(np.deg2rad(angle))])
     
-    # update position
+    # update life and position
     def update(self):
-        self.distance += self.speed
+        self.life -= 1
         self.pos[0:2] = np.add(self.pos[0:2], self.velocity)
     
-    # create a bullet
+    # draw a bullet
     def draw(self):
         glPushMatrix()
         glTranslatef(*self.pos)
