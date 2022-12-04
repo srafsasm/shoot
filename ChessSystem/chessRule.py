@@ -57,8 +57,6 @@ class chessBoard:
             self.xstart = self.movePiecesAmount(self.retPiece(x, y), y+1)
             self.ystart = self.movePiecesAmount(self.retPiece(x, y), x+1)
             self.retPiece(x,y).holding = True
-            # print(self.currentMovable)
-            # print(self.selected)
     
     def movePiecesAmount(self, piece, block_index):
         if block_index == 1: return piece.box1
@@ -79,17 +77,19 @@ class chessBoard:
             else:
                 return (False, None, None, None, None)
 
-    def remove_lost(self, x1, y1, x2, y2):
-        # os.system("pause")
+    def remove_lost(self, x1, y1, x2, y2, attacker_won):
         result = False
         if self.retPiece(x2, y2).type[5:-1] == "King":
             result = True
-        self.board[7-y2][x2] = self.board[7-y1][x1] # garbage 처리 필요할 듯 (아닐지도)
-        self.board[7-y1][x1] = None
-        self.board[7-y2][x2].move(x2, y2)
-        self.retPiece(x2, y2).moving = True
-        self.retPiece(x2, y2).moving_x_to = self.movePiecesAmount(self.retPiece(x2, y2), y2+1)
-        self.retPiece(x2, y2).moving_z_to = self.movePiecesAmount(self.retPiece(x2, y2), x2+1)        
+        if attacker_won:
+            self.board[7-y2][x2] = self.board[7-y1][x1] # garbage 처리 필요할 듯 (아닐지도)
+            self.board[7-y1][x1] = None
+            self.board[7-y2][x2].move(x2, y2)
+            self.retPiece(x2, y2).moving = True
+            self.retPiece(x2, y2).moving_x_to = self.movePiecesAmount(self.retPiece(x2, y2), y2+1)
+            self.retPiece(x2, y2).moving_z_to = self.movePiecesAmount(self.retPiece(x2, y2), x2+1)
+        else:
+            self.board[7-y1][x1] = None
         return result
 
     def movePieces(self, x2, y2):
@@ -182,6 +182,7 @@ class chessPieces:
         self.movingSpeed = 40
 
         self.holding = False
+        self.shooting = False
         
         if self.name ==   'WhitePawn1':   self.place = [self.box2, self.height, self.box1]
         elif self.name == 'WhitePawn2':   self.place = [self.box2, self.height, self.box2]
@@ -269,7 +270,60 @@ class chessPieces:
             self.movingCnt = 1
         else:
             self.movingCnt += 1
-        
+    
+    def moveKnight(self, x, y, z):
+        glPushMatrix()
+        glRotatef(90, 1, 0, 0)
+
+        if abs(x) >= abs(z):
+            if self.movingCnt == self.movingSpeed:
+                self.place[0] += self.movingSpeed/2 * x
+                self.place[1] = self.holdheight
+                glTranslatef(self.place[0], self.place[1], self.place[2])
+                self.movingCnt += 1
+
+            elif self.movingCnt > self.movingSpeed and self.movingCnt < 2*self.movingSpeed:
+                glTranslatef(self.place[0]+x*(self.movingCnt-self.movingSpeed)/2, self.holdheight+y*(self.movingCnt-self.movingSpeed), self.place[2]+z*(self.movingCnt-self.movingSpeed))
+                self.movingCnt += 1
+            
+            elif self.movingCnt >= 2*self.movingSpeed:
+                self.moving = False
+                self.place[0] += self.movingSpeed/2 * x
+                self.place[1] = self.height
+                self.place[2] += self.movingSpeed * z
+                glTranslatef(self.place[0], self.place[1], self.place[2])
+                self.movingCnt = 1
+            else:
+                glTranslatef(self.place[0]+x*self.movingCnt/2, self.holdheight, self.place[2])
+                self.movingCnt += 1
+        else:
+            if self.movingCnt == self.movingSpeed:
+                self.place[1] = self.holdheight
+                self.place[2] += self.movingSpeed/2 * z
+                glTranslatef(self.place[0], self.place[1], self.place[2])
+                self.movingCnt += 1
+
+            elif self.movingCnt > self.movingSpeed and self.movingCnt < 2*self.movingSpeed:
+                glTranslatef(self.place[0]+x*(self.movingCnt-self.movingSpeed), self.holdheight+y*(self.movingCnt-self.movingSpeed), self.place[2]+z*(self.movingCnt-self.movingSpeed)/2)
+                self.movingCnt += 1
+            
+            elif self.movingCnt >= 2*self.movingSpeed:
+                self.moving = False
+                self.place[0] += self.movingSpeed * x
+                self.place[1] = self.height
+                self.place[2] += self.movingSpeed/2 * z
+                glTranslatef(self.place[0], self.place[1], self.place[2])
+                self.movingCnt = 1
+            else:
+                glTranslatef(self.place[0], self.holdheight, self.place[2]+z*self.movingCnt/2)
+                self.movingCnt += 1
+
+        glRotatef(-90, 1, 0, 0)
+        glScale(PIECESIZE, PIECESIZE, PIECESIZE)
+        glCallList(self.obj.gl_list)
+        glPopMatrix()
+
+
     def move(self, x, y):
         if [x,y] in self.movable:
             self.position = [x, y]
