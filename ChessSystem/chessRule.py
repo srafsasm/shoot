@@ -79,9 +79,9 @@ class chessBoard:
 
     def remove_lost(self, x1, y1, x2, y2, attacker_won):
         result = False
-        if self.retPiece(x2, y2).type[5:-1] == "King":
-            result = True
         if attacker_won:
+            if self.retPiece(x2, y2).type[5:-1] == "King":
+                result = True
             self.board[7-y2][x2] = self.board[7-y1][x1] # garbage 처리 필요할 듯 (아닐지도)
             self.board[7-y1][x1] = None
             self.board[7-y2][x2].move(x2, y2)
@@ -89,6 +89,8 @@ class chessBoard:
             self.retPiece(x2, y2).moving_x_to = self.movePiecesAmount(self.retPiece(x2, y2), y2+1)
             self.retPiece(x2, y2).moving_z_to = self.movePiecesAmount(self.retPiece(x2, y2), x2+1)
         else:
+            if self.retPiece(x1, y1).type[5:-1] == "King":
+                result = True
             self.board[7-y1][x1] = None
         return result
 
