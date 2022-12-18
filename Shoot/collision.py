@@ -34,5 +34,5 @@ def handleCollision(object1, object2):
 def handleBoundary(object, bound):
     for i in range(2):
         if (abs(object.pos[i]) + object.size) > bound:
-            object.pos[i] += - np.sign(object.pos[i]) * (abs(object.pos[i]) + object.size - bound)
+            object.pos[i] += -2 * np.sign(object.pos[i]) * (abs(object.pos[i]) + object.size - bound)
             object.velocity[i] *= -1
